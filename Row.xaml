@@ -1,0 +1,112 @@
+<Border xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Name="RowBg"
+        Width="360"
+        Height="42"
+        CornerRadius="8"
+        Background="{DynamicResource BrushRowBase}"
+        Cursor="Hand">
+  <Grid>
+    <Grid.ColumnDefinitions>
+      <ColumnDefinition Width="18" />
+      <ColumnDefinition Width="22" />
+      <ColumnDefinition Width="*" />
+      <ColumnDefinition Width="58" />
+    </Grid.ColumnDefinitions>
+
+    <!-- The stripe does two jobs: it carries the workspace colour when more than
+         one is open, and it holds the model name, turned on its side.
+
+         Putting the model here is what frees the right-hand column to hold only
+         the time, which is what stopped the two of them colliding. It also means
+         the stripe is always drawn, even with a single workspace open, where it
+         takes a neutral grey instead of a workspace hue.
+
+         Full row height with square ends and only the left corners rounded, so
+         it sits flush inside the row's own corner instead of poking out of it. A
+         Border rather than a Rectangle, because a Rectangle can only round all
+         four corners at once. -->
+    <Border x:Name="Stripe"
+            Grid.Column="0"
+            Width="14"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Stretch"
+            CornerRadius="6,0,0,6">
+      <TextBlock x:Name="Model"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Center"
+                 FontFamily="Segoe UI"
+                 FontSize="9"
+                 FontWeight="SemiBold"
+                 Foreground="{DynamicResource BrushStripeText}"
+                 Text="">
+        <TextBlock.LayoutTransform>
+          <RotateTransform Angle="-90" />
+        </TextBlock.LayoutTransform>
+      </TextBlock>
+    </Border>
+
+    <!-- The dot only carries the working state. Once a row needs attention the
+         whole row is filled, and a dot on top of that fill would be noise. -->
+    <Ellipse x:Name="Dot"
+             Grid.Column="1"
+             Width="9" Height="9"
+             HorizontalAlignment="Left"
+             VerticalAlignment="Center"
+             Margin="4,0,0,0"
+             Fill="{DynamicResource BrushWorking}" />
+
+    <!-- Sentence case, never caps: word shape is what you actually read at a
+         glance, and caps destroys it. Ellipsis at the end because these labels
+         are Claude's task summaries and run past 40 characters. -->
+    <TextBlock x:Name="Label"
+               Grid.Column="2"
+               VerticalAlignment="Center"
+               FontFamily="Segoe UI"
+               FontWeight="SemiBold"
+               FontSize="15"
+               Foreground="{DynamicResource BrushText}"
+               TextTrimming="CharacterEllipsis"
+               Text="" />
+
+    <!-- The time, alone. The model used to sit stacked underneath it, which put
+         it a pixel away from the context bar; it lives in the stripe now.
+         A working row counts up here, upright. Any other row shows the clock
+         time it stopped as "at 14:05", in italics, so the two are never read
+         as the same kind of number. The column is wide enough for the "at". -->
+
+    <TextBlock x:Name="Timer"
+               Grid.Column="3"
+               VerticalAlignment="Center"
+               HorizontalAlignment="Right"
+               Margin="0,0,10,0"
+               FontFamily="Segoe UI"
+               FontSize="12"
+               Foreground="{DynamicResource BrushTextDim}"
+               Typography.NumeralAlignment="Tabular"
+               Text="" />
+
+    <!-- Context in use, as a hairline along the bottom of the row. A bar costs
+         no width and no height worth counting, and this is a number you only
+         ever want to notice, never read. Translucent white so it works on the
+         dark row and on both fills. -->
+    <!-- Full row width again. It was shortened to dodge the model text, and with
+         the model moved into the stripe there is nothing left to dodge. -->
+    <Border x:Name="CtxTrack"
+            Grid.ColumnSpan="4"
+            Height="2"
+            VerticalAlignment="Bottom"
+            Margin="20,0,10,4"
+            CornerRadius="1"
+            Background="{DynamicResource BrushCtxTrack}" />
+    <Border x:Name="CtxFill"
+            Grid.ColumnSpan="4"
+            Height="2"
+            Width="0"
+            HorizontalAlignment="Left"
+            VerticalAlignment="Bottom"
+            Margin="20,0,10,4"
+            CornerRadius="1"
+            Background="{DynamicResource BrushCtxFill}" />
+  </Grid>
+</Border>

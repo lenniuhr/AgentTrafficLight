@@ -1,0 +1,127 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Agent Traffic Light"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Topmost="True"
+        ShowInTaskbar="False"
+        ResizeMode="NoResize"
+        SizeToContent="Manual"
+        Width="404"
+        Height="120"
+        Left="40"
+        Top="40">
+
+  <!-- All colour and size decisions live here. Editing this file and restarting
+       the widget is the whole restyling loop; nothing below is hardcoded in the
+       PowerShell. The keys are looked up by name from the script. -->
+  <Window.Resources>
+    <SolidColorBrush x:Key="BrushCard"        Color="#14161A" />
+    <SolidColorBrush x:Key="BrushCardEdge"    Color="#0A0B0E" />
+    <SolidColorBrush x:Key="BrushCardInner"   Color="#1AFFFFFF" />
+    <SolidColorBrush x:Key="BrushText"        Color="#E8EBEF" />
+    <SolidColorBrush x:Key="BrushTextDim"     Color="#8B94A1" />
+
+    <!-- Row states. Blue is the calm one on purpose: it has the lowest salience
+         of the three, so a card full of working sessions stays quiet.
+
+         The two fills are deliberately dark and desaturated. A saturated block
+         of colour on a dark card reads as an alarm even when the news is good,
+         and a finished session is good news. These sit on the card rather than
+         glowing off it, and the signal is carried by the fill covering the whole
+         row and by where the row sorts to, not by shouting.
+
+         Green for finished, amber for blocked, and no red anywhere: green
+         against red is the one pair roughly one man in twelve cannot separate,
+         and dropping red entirely is what frees green to mean "done". -->
+    <SolidColorBrush x:Key="BrushWorking"     Color="#4C9BE8" />
+    <SolidColorBrush x:Key="BrushWaiting"     Color="#2C6650" />
+    <SolidColorBrush x:Key="BrushBlocked"     Color="#9A6526" />
+
+    <!-- A working row is not transparent. Left as nothing it dissolved into the
+         card and you could not see where one row ended and the next began; a
+         lift of a few points over the card background is enough to give every
+         row a visible shape without putting colour on a session that is simply
+         getting on with its work. -->
+    <SolidColorBrush x:Key="BrushRowBase"     Color="#1E222A" />
+    <SolidColorBrush x:Key="BrushTextOnWait"  Color="#E6F3EC" />
+    <SolidColorBrush x:Key="BrushTextOnBlock" Color="#FBEEDD" />
+
+    <!-- The timer is secondary information on a filled row exactly as it is on
+         a dark one, so it gets the same treatment: the row's text colour pulled
+         back towards the fill underneath it. Full-strength white on the fill
+         made the number compete with the label. -->
+    <SolidColorBrush x:Key="BrushTimerOnWait"  Color="#9CBBAE" />
+    <SolidColorBrush x:Key="BrushTimerOnBlock" Color="#D4B794" />
+
+    <!-- The model name is set into the stripe, so it needs to read against a
+         workspace hue rather than against the row. All the stripe colours are
+         light, so it is near-black. -->
+    <SolidColorBrush x:Key="BrushStripeText"   Color="#16181D" />
+
+    <!-- The stripe when only one workspace is open and there is nothing to tell
+         apart. It still has to hold the model name, so it stays light. -->
+    <SolidColorBrush x:Key="BrushWsNeutral"    Color="#9AA3B2" />
+
+    <!-- Context bar. Translucent white rather than a fixed colour, so the same
+         two brushes read correctly on the dark row and on both fills. The high
+         mark is a bright amber, which is the only moment this bar is meant to
+         be looked at rather than merely noticed. -->
+    <SolidColorBrush x:Key="BrushCtxTrack"     Color="#24FFFFFF" />
+    <SolidColorBrush x:Key="BrushCtxFill"      Color="#8CFFFFFF" />
+    <SolidColorBrush x:Key="BrushCtxHigh"      Color="#E8A33D" />
+
+    <!-- Workspace hues for the stripe and the heading swatch. Assigned by a
+         stable hash of the folder path, so a workspace keeps its colour across
+         restarts and does not swap when sessions open in a different order.
+         Deliberately violet and pink first: neither can be mistaken for the
+         blue working dot or for either of the two state fills. -->
+    <SolidColorBrush x:Key="BrushWs0"         Color="#9B8CF0" />
+    <SolidColorBrush x:Key="BrushWs1"         Color="#E48FB8" />
+    <SolidColorBrush x:Key="BrushWs2"         Color="#5FC8D8" />
+    <SolidColorBrush x:Key="BrushWs3"         Color="#B8B4C8" />
+  </Window.Resources>
+
+  <!-- The outer margin is the drop shadow's room to breathe. Without it the
+       shadow is clipped by the window bounds and the card looks like a sticker. -->
+  <Grid Margin="12">
+    <Border x:Name="Card"
+            Background="{DynamicResource BrushCard}"
+            BorderBrush="{DynamicResource BrushCardEdge}"
+            BorderThickness="1"
+            CornerRadius="10">
+      <Border.Effect>
+        <DropShadowEffect Color="#000000" BlurRadius="20" ShadowDepth="2" Opacity="0.35" Direction="270" />
+      </Border.Effect>
+
+      <!-- Second, lighter stroke just inside the dark one. Together they keep the
+           card's edge visible whether it is sitting on a grey editor or on a white
+           browser window. -->
+      <Border BorderBrush="{DynamicResource BrushCardInner}"
+              BorderThickness="1"
+              CornerRadius="9">
+        <Grid>
+          <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+          </Grid.RowDefinitions>
+
+          <!-- Rows are positioned by hand on a Canvas rather than stacked, because
+               a row that changes state slides to its new place and only a Canvas
+               lets us animate Top. -->
+          <Canvas x:Name="RowCanvas" Grid.Row="0" Margin="10,10,10,0" />
+
+          <TextBlock x:Name="WarnText"
+                     Grid.Row="1"
+                     Margin="14,2,14,8"
+                     FontFamily="Segoe UI"
+                     FontSize="11"
+                     Foreground="{DynamicResource BrushBlocked}"
+                     TextTrimming="CharacterEllipsis"
+                     Visibility="Collapsed" />
+        </Grid>
+      </Border>
+    </Border>
+  </Grid>
+</Window>

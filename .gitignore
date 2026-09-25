@@ -1,0 +1,5 @@
+# Runtime state: markers, window position, row order, logs
+state/
+
+# Settings backups the installer may leave next to a copied settings file
+*.bak
