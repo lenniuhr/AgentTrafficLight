@@ -103,17 +103,55 @@
               CornerRadius="9">
         <Grid>
           <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
           </Grid.RowDefinitions>
 
+          <!-- Today's time with at least one session open. The height is fixed
+               because the script sizes the window from it before WPF has
+               measured anything. Tabular digits keep the number from shifting
+               sideways as it counts. The two small lines on the left together
+               match the number's height, so neither side floats. Their bottom
+               margin puts the lower line on the timer's baseline. The right
+               margin lines the timer up with the row timers below. -->
+          <Border x:Name="WorkClock" Grid.Row="0" Height="32" Margin="14,10,16,0">
+            <Grid>
+              <StackPanel HorizontalAlignment="Left"
+                          VerticalAlignment="Bottom"
+                          Margin="0,0,0,4">
+                <TextBlock Text="VIBING SESSION"
+                           FontFamily="Bahnschrift"
+                           FontWeight="SemiBold"
+                           FontSize="11"
+                           Foreground="{DynamicResource BrushText}" />
+                <TextBlock x:Name="WorkClockSub"
+                           Text=""
+                           FontFamily="Bahnschrift"
+                           FontSize="11"
+                           Typography.NumeralAlignment="Tabular"
+                           Foreground="{DynamicResource BrushTextDim}" />
+              </StackPanel>
+              <TextBlock x:Name="WorkClockText"
+                         Text="0:00:00"
+                         HorizontalAlignment="Right"
+                         VerticalAlignment="Bottom"
+                         FontFamily="Bahnschrift"
+                         FontWeight="SemiBold"
+                         FontStretch="Condensed"
+                         FontSize="26"
+                         Typography.NumeralAlignment="Tabular"
+                         Foreground="{DynamicResource BrushText}" />
+            </Grid>
+          </Border>
+
           <!-- Rows are positioned by hand on a Canvas rather than stacked, because
                a row that changes state slides to its new place and only a Canvas
                lets us animate Top. -->
-          <Canvas x:Name="RowCanvas" Grid.Row="0" Margin="10,10,10,0" />
+          <Canvas x:Name="RowCanvas" Grid.Row="1" Margin="10,10,10,0" />
 
           <TextBlock x:Name="WarnText"
-                     Grid.Row="1"
+                     Grid.Row="2"
                      Margin="14,2,14,8"
                      FontFamily="Segoe UI"
                      FontSize="11"

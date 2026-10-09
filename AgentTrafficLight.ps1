@@ -610,6 +610,9 @@ function Import-Xaml {
 $window    = Import-Xaml 'AgentTrafficLight.xaml'
 $rowCanvas = $window.FindName('RowCanvas')
 $warnText  = $window.FindName('WarnText')
+$workClock     = $window.FindName('WorkClock')
+$workClockText = $window.FindName('WorkClockText')
+$workClockSub  = $window.FindName('WorkClockSub')
 
 $brush = @{
     Working      = $window.FindResource('BrushWorking')
@@ -992,6 +995,110 @@ function Update-Timers {
         }
     }
 }
+
+# ---------------------------------------------------------------------------
+# Work clock: today's time with at least one session open, shown at the top of
+# the card with today's first start and this week's total under the label. Kept
+# in state/worktime.csv as one "yyyy-MM-dd,h:mm:ss,HH:mm" line per day, the last
+# line being today; the third column is when the day's counting began. Weeks
+# start on Monday.
+# ---------------------------------------------------------------------------
+$workClockFile = Join-Path $stateDir 'worktime.csv'
+$workClockMaxStepSec = 5    # a longer gap between ticks is sleep, not work
+$workClockSaveSec    = 30
+$workClockSep = ' ' + [char]0x00B7 + ' '   # code point: the file is read as ANSI
+
+function Format-WorkClock {
+    param([double]$Seconds, [switch]$NoSeconds)
+    $span = [TimeSpan]::FromSeconds([Math]::Floor($Seconds))
+    if ($NoSeconds) { return ('{0}:{1:00}' -f [Math]::Floor($span.TotalHours), $span.Minutes) }
+    return ('{0}:{1:00}:{2:00}' -f [Math]::Floor($span.TotalHours), $span.Minutes, $span.Seconds)
+}
+
+# One line as @{ Date; Seconds; Start }, or $null if it does not parse.
+function ConvertFrom-WorkLine {
+    param([string]$Line)
+    $parts = $Line.Split(',')
+    if ($parts.Count -lt 2) { return $null }
+    $hms = $parts[1].Split(':')
+    if ($hms.Count -ne 3) { return $null }
+    $start = $null
+    if ($parts.Count -ge 3 -and $parts[2].Trim()) { $start = $parts[2].Trim() }
+    return @{
+        Date    = $parts[0]
+        Seconds = [double]([int]$hms[0] * 3600 + [int]$hms[1] * 60 + [int]$hms[2])
+        Start   = $start
+    }
+}
+
+function Get-WorkLines {
+    if (-not (Test-Path $workClockFile)) { return @() }
+    return @(Get-Content $workClockFile | Where-Object { $_.Trim() })
+}
+
+# Today's figures from the last line, and this week's total before today, which
+# only changes at midnight so it is summed once rather than every second.
+function Read-WorkClock {
+    $script:workDate = (Get-Date).Date
+    $script:workSeconds = 0.0
+    $script:workStart = $null
+    $today = $script:workDate.ToString('yyyy-MM-dd')
+    $monday = $script:workDate.AddDays(-(([int]$script:workDate.DayOfWeek + 6) % 7)).ToString('yyyy-MM-dd')
+    $script:workWeekBefore = 0.0
+    foreach ($l in Get-WorkLines) {
+        $w = ConvertFrom-WorkLine -Line $l
+        if ($null -eq $w) { continue }
+        if ($w.Date -eq $today) {
+            $script:workSeconds = $w.Seconds
+            $script:workStart = $w.Start
+        } elseif ($w.Date -ge $monday -and $w.Date -lt $today) {
+            $script:workWeekBefore += $w.Seconds
+        }
+    }
+}
+
+# Rewrites today's line in place, or appends it on the first save of a day.
+function Save-WorkClock {
+    $day = $script:workDate.ToString('yyyy-MM-dd')
+    $line = $day + ',' + (Format-WorkClock -Seconds $script:workSeconds)
+    if ($script:workStart) { $line += ',' + $script:workStart }
+    $lines = @(Get-WorkLines)
+    if ($lines.Count -gt 0 -and $lines[-1].StartsWith($day + ',')) {
+        $lines[-1] = $line
+    } else {
+        $lines += $line
+    }
+    [System.IO.File]::WriteAllLines($workClockFile, [string[]]$lines)
+    $script:workSavedAt = Get-Date
+}
+
+# Called once a second from the clock timer.
+function Update-WorkClock {
+    $now = Get-Date
+    $step = ($now - $script:workTickAt).TotalSeconds
+    $script:workTickAt = $now
+    if ($step -gt $workClockMaxStepSec) { $step = $workClockMaxStepSec }
+
+    if ($now.Date -ne $script:workDate) {
+        Save-WorkClock
+        Read-WorkClock
+    }
+    if ($rows.Count -gt 0 -and $step -gt 0) {
+        $script:workSeconds += $step
+        if (-not $script:workStart) { $script:workStart = $now.ToString('HH:mm') }
+    }
+
+    $text = Format-WorkClock -Seconds $script:workSeconds
+    if ($workClockText.Text -ne $text) { $workClockText.Text = $text }
+    $sub = 'week ' + (Format-WorkClock -Seconds ($script:workWeekBefore + $script:workSeconds) -NoSeconds)
+    if ($script:workStart) { $sub = 'since ' + $script:workStart + $workClockSep + $sub }
+    if ($workClockSub.Text -ne $sub) { $workClockSub.Text = $sub }
+    if (($now - $script:workSavedAt).TotalSeconds -ge $workClockSaveSec) { Save-WorkClock }
+}
+
+Read-WorkClock
+$script:workTickAt = Get-Date
+$script:workSavedAt = Get-Date
 
 function Set-DotPulse {
     param([bool]$On)
@@ -1462,6 +1569,7 @@ function Update-Layout {
     }
     $bodyHeight = $contentHeight + $cardPadding * 2
     if ($warnText.Visibility -eq 'Visible') { $bodyHeight += 20 }
+    $bodyHeight += $workClock.Height + $workClock.Margin.Top
     $window.Height = $bodyHeight + $shadowMargin * 2
 }
 
@@ -1525,6 +1633,7 @@ $menu.Items.Add('-') | Out-Null
 $quitItem = $menu.Items.Add('Quit')
 $quitItem.Add_Click({
     Save-Position
+    try { Save-WorkClock } catch { Write-ErrorLog -Where 'workclock' -Problem $_ }
     $notify.Visible = $false
     $notify.Dispose()
     [System.Windows.Application]::Current.Shutdown()
@@ -1583,7 +1692,10 @@ $window.Add_MouseMove({
     } catch { Write-ErrorLog -Where 'drag' -Problem $_ }
 })
 
-$window.Add_Closing({ Save-Position })
+$window.Add_Closing({
+    Save-Position
+    try { Save-WorkClock } catch { Write-ErrorLog -Where 'workclock' -Problem $_ }
+})
 
 # A throw inside a timer tick does not reach the trap above, and an unlogged
 # crash in a hidden-console app looks exactly like the widget silently freezing.
@@ -1609,6 +1721,7 @@ $clockTimer.Interval = [TimeSpan]::FromMilliseconds(1015 - (Get-Date).Millisecon
 $clockTimer.Add_Tick({
     param($sender, $e)
     try { Update-Timers } catch { Write-ErrorLog -Where 'clock' -Problem $_ }
+    try { Update-WorkClock } catch { Write-ErrorLog -Where 'workclock' -Problem $_ }
     $sender.Interval = [TimeSpan]::FromMilliseconds(1015 - (Get-Date).Millisecond)
 })
 
