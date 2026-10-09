@@ -1144,8 +1144,9 @@ function Save-UserOrder {
 function Resolve-BlockedRows {
     param($Ordered)
 
-    $files = @(Get-ChildItem $stateDir -Filter '*.json' -ErrorAction SilentlyContinue |
-               Where-Object { $_.Name -ne 'window-position.json' })
+    # Only the markers folder: sweeping all of state/ once deleted the saved
+    # row order along with the stale markers.
+    $files = @(Get-ChildItem (Join-Path $stateDir 'markers') -Filter '*.json' -ErrorAction SilentlyContinue)
     if ($files.Count -eq 0) { return @() }
 
     # Judged on the state the titles just reported, not on the state currently

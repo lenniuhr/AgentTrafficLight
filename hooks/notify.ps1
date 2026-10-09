@@ -38,11 +38,13 @@ try {
     # resolves each row's session id through the process chain, so it can match
     # this marker exactly. An earlier version also recorded the console title
     # for fuzzy matching; nothing needs it any more.
-    $stateDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'state'
-    if (-not (Test-Path $stateDir)) { New-Item -ItemType Directory -Path $stateDir -Force | Out-Null }
+    # Markers have a folder of their own because the widget deletes stale ones
+    # by sweeping it, and that sweep must never reach the other state files.
+    $markerDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'state\markers'
+    if (-not (Test-Path $markerDir)) { New-Item -ItemType Directory -Path $markerDir -Force | Out-Null }
 
     $safeId = ($sessionId -replace '[^A-Za-z0-9\-]', '')
-    $marker = Join-Path $stateDir ($safeId + '.json')
+    $marker = Join-Path $markerDir ($safeId + '.json')
 
     [pscustomobject]@{
         sessionId = $sessionId

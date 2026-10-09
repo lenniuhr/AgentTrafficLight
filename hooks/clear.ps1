@@ -17,9 +17,9 @@ try {
     $sessionId = $payload.session_id
     if ([string]::IsNullOrWhiteSpace($sessionId)) { exit 0 }
 
-    $stateDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'state'
+    $markerDir = Join-Path (Split-Path -Parent $PSScriptRoot) 'state\markers'
     $safeId = ($sessionId -replace '[^A-Za-z0-9\-]', '')
-    $marker = Join-Path $stateDir ($safeId + '.json')
+    $marker = Join-Path $markerDir ($safeId + '.json')
     if (Test-Path $marker) { Remove-Item $marker -Force -ErrorAction SilentlyContinue }
 } catch {
     exit 0
